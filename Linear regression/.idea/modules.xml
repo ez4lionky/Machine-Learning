@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../Decision tree/.idea/Decision tree.iml" filepath="$PROJECT_DIR$/../Decision tree/.idea/Decision tree.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Linear regression.iml" filepath="$PROJECT_DIR$/.idea/Linear regression.iml" />
+    </modules>
+  </component>
+</project>
