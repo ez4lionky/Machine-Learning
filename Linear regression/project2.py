@@ -1,6 +1,5 @@
-import math
 import csv
-import numpy as np
+from util import *
 import matplotlib.pyplot as plt
 
 
@@ -36,31 +35,28 @@ def load_data(path):
 
 
 train_x, train_y = load_data('data/mpg-2018.csv')
-train_x = np.reshape(train_x, newshape=(-1, 1))
-train_y = np.reshape(train_y, newshape=(-1, 1))
-
 test_x, test_y = load_data('data/mpg-2017.csv')
-test_x = np.reshape(test_x, newshape=(-1, 1))
-test_y = np.reshape(test_y, newshape=(-1, 1))
-# a, b = load_data('data/mpg-2017.csv')
-# print(len(a))
-# print(len(b))
-
 
 def model(w1, b, w2, w3, x):
-    return w1 * x + b + w2 * np.log(x + w3)
+    term1 = mat_sub_add(mat_mul(w1, x), b, 'add')
+    mat_log(mat_sub_add(x, w3, 'add'))
+    term2 = mat_mul(w2, mat_log(mat_sub_add(x, w3, 'add')))
+    return mat_sub_add(term1, term2, 'add')
 
 
 def optimize(w1, b, w2, w3, x, y):
     n = len(x)
     alpha = 1e-4
     y_hat = model(w1, b, w2, w3, x)
-    dw1 = (1.0 / n) * ((y_hat - y) * x).sum()
-    db = (1.0 / n) * ((y_hat - y).sum())
-    dw2 = (1.0 / n) * ((y_hat - y) * np.log(x + w3)).sum()
-    dw3 = (1.0 / n) * ((y_hat - y) * w2 * 1.0 / np.log(x + w3)).sum()
+    delta_y = mat_sub_add(y_hat, y)
+    dw1 = sum(mat_mul(1.0 / n, mat_mul(delta_y, x)))
+    db = sum(mat_mul(1.0 / n, delta_y))
+    dw2 = sum(mat_mul(1.0 / n, mat_mul(delta_y, mat_log(mat_sub_add(x, w3, 'add')))))
+    t = mat_div(1.0, mat_sub_add(x, w3, 'add'))
+    t = mat_mul(w2, t)
+    dw3 = sum(mat_mul(1.0 / n, mat_mul(delta_y, t)))
     w1 = w1 - alpha * dw1
-    b = b - alpha * db
+    b = w2 - alpha * db
     w2 = w2 - alpha * dw2
     w3 = w3 - alpha * dw3
     return w1, b, w2, w3
@@ -71,9 +67,8 @@ def iterate(w1, b, w2, w3, x, y, epochs):
         w1, b, w2, w3 = optimize(w1, b, w2, w3, x, y)
 
     y_hat = model(w1, b, w2, w3, x)
-    print(w1, b, w2, w3)
     plt.scatter(x, y)
-    plt.plot(x, y_hat)
+    plt.scatter(x, y_hat, c='r')
     return w1, b, w2, w3
 
 
@@ -87,7 +82,7 @@ def evaluate(w1, b, w2, w3, x, y):
 
 w1, w2, w3 = 0.01, 0.01, 0.01
 b = 0
-epochs = 1000000
+epochs = 1000
 w1, b, w2, w3 = iterate(w1, b, w2, w3, train_x, train_y, epochs)
 error = evaluate(w1, b, w2, w3, test_x, test_y)
 print(error)

@@ -35,11 +35,11 @@ def load_data(path):
     return x, y
 
 
-train_x, train_y = load_data('data/mpg-2017.csv')
+train_x, train_y = load_data('data/mpg-2018.csv')
 train_x = np.reshape(train_x, newshape=(-1, 1))
 train_y = np.reshape(train_y, newshape=(-1, 1))
 
-test_x, test_y = load_data('data/mpg-2018.csv')
+test_x, test_y = load_data('data/mpg-2017.csv')
 test_x = np.reshape(test_x, newshape=(-1, 1))
 test_y = np.reshape(test_y, newshape=(-1, 1))
 # a, b = load_data('data/mpg-2017.csv')
