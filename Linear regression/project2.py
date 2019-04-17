@@ -35,11 +35,11 @@ def load_data(path):
     return x, y
 
 
-train_x, train_y = load_data('data/mpg-2017.csv')
+train_x, train_y = load_data('data/mpg-2018.csv')
 train_x = np.reshape(train_x, newshape=(-1, 1))
 train_y = np.reshape(train_y, newshape=(-1, 1))
 
-test_x, test_y = load_data('data/mpg-2018.csv')
+test_x, test_y = load_data('data/mpg-2017.csv')
 test_x = np.reshape(test_x, newshape=(-1, 1))
 test_y = np.reshape(test_y, newshape=(-1, 1))
 # a, b = load_data('data/mpg-2017.csv')
@@ -47,51 +47,49 @@ test_y = np.reshape(test_y, newshape=(-1, 1))
 # print(len(b))
 
 
-def model(w, b, x):
-    return w * x + b
+def model(w1, b, w2, w3, x):
+    return w1 * x + b + w2 * np.log(x + w3)
 
 
-def cost_function(w, b, x, y):
-    n = len(x)
-    return 0.5 / n * (np.square(y - w * x - b)).sum()
-
-
-def optimize(w, b , x, y):
+def optimize(w1, b, w2, w3, x, y):
     n = len(x)
     alpha = 1e-4
-    y_hat = model(w, b, x)
-    dw = (1.0 / n) * ((y_hat - y) * x).sum()
+    y_hat = model(w1, b, w2, w3, x)
+    dw1 = (1.0 / n) * ((y_hat - y) * x).sum()
     db = (1.0 / n) * ((y_hat - y).sum())
-    w = w - alpha * dw
+    dw2 = (1.0 / n) * ((y_hat - y) * np.log(x + w3)).sum()
+    dw3 = (1.0 / n) * ((y_hat - y) * w2 * 1.0 / np.log(x + w3)).sum()
+    w1 = w1 - alpha * dw1
     b = b - alpha * db
-    return w, b
+    w2 = w2 - alpha * dw2
+    w3 = w3 - alpha * dw3
+    return w1, b, w2, w3
 
 
-def iterate(w, b, x, y, epochs):
+def iterate(w1, b, w2, w3, x, y, epochs):
     for i in range(epochs):
-        w, b = optimize(w, b, x, y)
+        w1, b, w2, w3 = optimize(w1, b, w2, w3, x, y)
 
-    y_hat = model(w, b, x)
-    cost = cost_function(w, b, x, y)
-    print(w, b, cost)
-    plt.scatter(x,y)
-    plt.plot(x,y_hat)
-    return w, b
+    y_hat = model(w1, b, w2, w3, x)
+    print(w1, b, w2, w3)
+    plt.scatter(x, y)
+    plt.plot(x, y_hat)
+    return w1, b, w2, w3
 
 
 # MAE metric
-def evaluate(w, b, x, y):
+def evaluate(w1, b, w2, w3, x, y):
     sum = 0
-    y_hat = model(w, b, x)
+    y_hat = model(w1, b, w2, w3, x)
     for i in range(len(y)):
         sum += math.fabs(y[i] - y_hat[i])
     return sum / len(y)
 
-w = 0.01
+w1, w2, w3 = 0.01, 0.01, 0.01
 b = 0
 epochs = 1000000
-w, b = iterate(w, b, train_x, train_y, epochs)
-error = evaluate(w, b, test_x, test_y)
+w1, b, w2, w3 = iterate(w1, b, w2, w3, train_x, train_y, epochs)
+error = evaluate(w1, b, w2, w3, test_x, test_y)
 print(error)
 plt.title('{} iteration / mean absolute error: {:.2f}'.format(epochs, error))
 plt.savefig('graphs/{}epochs-mae{:.2f}.jpg'.format(epochs, error))
