@@ -13,12 +13,17 @@ from functools import reduce
 # per_class_max_docs = 100
 
 def load_data_to_mini(path, per_class_max_docs=10, words_num=250):
-    corpus = {}
-    words_list = []
+    corpus = {} #训练数据
+    words_list = [] #存放所有文档的单词
     # with open(to_path, 'w') as f:
     for files in os.listdir(path):
+        if os.path.isdir(os.path.join(path, files)):
+            continue
         docs = []
         file_path = os.path.join(path, files)
+        direc = os.path.join(path, str(files).split('.txt')[0])
+        if not os.path.exists(direc):
+            os.makedirs(direc)
         with open(file_path) as f:
             text = f.read().lower()
             for c in string.punctuation:  # 去标点
@@ -27,6 +32,7 @@ def load_data_to_mini(path, per_class_max_docs=10, words_num=250):
                 text = text.replace(c, '')
 
             text = nltk.word_tokenize(text)  # 分割成单词
+            i = 0
             for _ in range(per_class_max_docs):
                 doc = []
                 count = 0
@@ -35,8 +41,12 @@ def load_data_to_mini(path, per_class_max_docs=10, words_num=250):
                     count += 1
                     if(count>=words_num):
                         break
+                with open(direc + '/text{}.txt'.format(i), 'w') as f:
+                    f.write(' '.join(doc))
                 docs.append(doc)
+                i += 1
         corpus[files] = docs
+
         words_list.append(docs)
     words_list = reduce(operator.add, words_list)
     words_list = reduce(operator.add, words_list)
