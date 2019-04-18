@@ -85,6 +85,6 @@ b = 0
 epochs = 1000
 w1, b, w2, w3 = iterate(w1, b, w2, w3, train_x, train_y, epochs)
 error = evaluate(w1, b, w2, w3, test_x, test_y)
-print(error)
+print('MAE error: ', error)
 plt.title('{} iteration / mean absolute error: {:.2f}'.format(epochs, error))
 plt.savefig('graphs/{}epochs-mae{:.2f}.jpg'.format(epochs, error))
