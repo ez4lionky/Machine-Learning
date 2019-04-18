@@ -1,5 +1,4 @@
 import csv
-from util import *
 import matplotlib.pyplot as plt
 
 
@@ -33,50 +32,57 @@ def load_data(path):
             y.append(line[1])
     return x, y
 
-
-train_x, train_y = load_data('data/mpg-2018.csv')
-test_x, test_y = load_data('data/mpg-2017.csv')
+train_file = 'mpg-2017.csv'
+test_file = 'mpg-2017.csv'
+train_x, train_y = load_data('data/' + train_file)
+test_x, test_y = load_data('data/' + test_file)
 
 def model(w, b, x):
-    return mat_sub_add(mat_mul(w, x), b)
+    result = []
+    for x_i in x:
+        result.append(w * x_i + b)
+    return result
 
 
-def optimize(w, b , x, y):
+def optimize(w, b, x, y, lr):
     n = len(x)
-    alpha = 1e-4
     y_hat = model(w, b, x)
-    delta_y = mat_sub_add(y_hat, y)
-    dw = sum(mat_mul(1.0 / n, mat_mul(delta_y, x)))
-    db = sum(mat_mul(1.0 / n, delta_y))
-    w = w - alpha * dw
-    b = b - alpha * db
+    dw, db = 0, 0
+    for i in range(n):
+        dw += 2 * (y_hat[i] - y[i]) * x[i]
+        db += 2 * (y_hat[i] - y[i])
+    w -= lr * dw / n
+    b -= lr * db / n
     return w, b
 
 
-def iterate(w, b, x, y, epochs):
+def iterate(w, b, x, y, epochs, lr=1e-4):
     for i in range(epochs):
-        w, b = optimize(w, b, x, y)
-
+        w, b = optimize(w, b, x, y, lr)
     y_hat = model(w, b, x)
-    print(w, b)
-    plt.scatter(x,y)
-    plt.plot(x,y_hat)
+    plt.scatter(x, y)
+    plt.plot(x, y_hat)
     return w, b
 
 
-# MAE metric
-def evaluate(w, b, x, y):
-    sum = 0
+def cost_function(w, b, x, y):
+    n = len(x)
     y_hat = model(w, b, x)
-    for i in range(len(y)):
-        sum += math.fabs(y[i] - y_hat[i])
-    return sum / len(y)
+    sum = 0
+    for i in range(n):
+        sum += (y_hat[i] - y[i]) ** 2
+    return sum
 
-w = 0.01
-b = 0
-epochs = 100
+
+w, b = 0.01, 0
+lr = 1e-4
+epochs = 500000
 w, b = iterate(w, b, train_x, train_y, epochs)
-error = evaluate(w, b, test_x, test_y)
-print('MAE error: ', error)
-plt.title('{} iteration / mean absolute error: {:.2f}'.format(epochs, error))
-# plt.savefig('graphs/{}epochs-mae{:.2f}.jpg'.format(epochs, error))
+print('learning rate:', lr)
+print('epochs:', epochs)
+print('w:', w)
+print('b:', b)
+error = cost_function(w, b, test_x, test_y)
+print('Test data', test_file, 'train with', train_file, 'error:', error)
+plt.title('{} iteration / error: {:.2f}'.format(epochs, error))
+plt.savefig('graphs/{}epochs-error{:.2f}.jpg'.format(epochs, error))

@@ -1,5 +1,5 @@
 import csv
-from util import *
+import math
 import matplotlib.pyplot as plt
 
 
@@ -34,37 +34,45 @@ def load_data(path):
     return x, y
 
 
-train_x, train_y = load_data('data/mpg-2018.csv')
-test_x, test_y = load_data('data/mpg-2017.csv')
+train_file = 'mpg-2018.csv'
+test_file = 'mpg-2017.csv'
+train_x, train_y = load_data('data/' + train_file)
+test_x, test_y = load_data('data/' + test_file)
 
 def model(w1, b, w2, w3, x):
-    term1 = mat_sub_add(mat_mul(w1, x), b, 'add')
-    mat_log(mat_sub_add(x, w3, 'add'))
-    term2 = mat_mul(w2, mat_log(mat_sub_add(x, w3, 'add')))
-    return mat_sub_add(term1, term2, 'add')
+    term1 = []
+    for x_i in x:
+        term1.append(w1 * x_i + b)
+
+    term2 = []
+    for x_i in x:
+        term2.append(w2 * math.log(x_i + w3))
+
+    result = []
+    for i in range(len(x)):
+        result.append(term1[i] + term2[i])
+    return result
 
 
-def optimize(w1, b, w2, w3, x, y):
+def optimize(w1, b, w2, w3, x, y, lr):
     n = len(x)
-    alpha = 1e-4
     y_hat = model(w1, b, w2, w3, x)
-    delta_y = mat_sub_add(y_hat, y)
-    dw1 = sum(mat_mul(1.0 / n, mat_mul(delta_y, x)))
-    db = sum(mat_mul(1.0 / n, delta_y))
-    dw2 = sum(mat_mul(1.0 / n, mat_mul(delta_y, mat_log(mat_sub_add(x, w3, 'add')))))
-    t = mat_div(1.0, mat_sub_add(x, w3, 'add'))
-    t = mat_mul(w2, t)
-    dw3 = sum(mat_mul(1.0 / n, mat_mul(delta_y, t)))
-    w1 = w1 - alpha * dw1
-    b = w2 - alpha * db
-    w2 = w2 - alpha * dw2
-    w3 = w3 - alpha * dw3
+    dw1, db, dw2, dw3 = 0, 0, 0, 0
+    for i in range(n):
+        dw1 += 2 * (y_hat[i] - y[i]) * x[i]
+        db += 2 * (y_hat[i] - y[i])
+        dw2 += 2 * (y_hat[i] - y[i]) * math.log(x[i] + w3)
+        dw3 += 2 * (y_hat[i] - y[i]) * w2 / (x[i] + w3)
+    w1 -= lr * dw1 / n
+    b -= lr * db / n
+    w2 -= lr * dw2 / n
+    w3 -= lr * dw3 / n
     return w1, b, w2, w3
 
 
-def iterate(w1, b, w2, w3, x, y, epochs):
+def iterate(w1, b, w2, w3, x, y, epochs, lr=1e-4):
     for i in range(epochs):
-        w1, b, w2, w3 = optimize(w1, b, w2, w3, x, y)
+        w1, b, w2, w3 = optimize(w1, b, w2, w3, x, y, lr)
 
     y_hat = model(w1, b, w2, w3, x)
     plt.scatter(x, y)
@@ -72,19 +80,25 @@ def iterate(w1, b, w2, w3, x, y, epochs):
     return w1, b, w2, w3
 
 
-# MAE metric
-def evaluate(w1, b, w2, w3, x, y):
-    sum = 0
+def cost_function(w1, b, w2, w3, x, y):
+    n = len(x)
     y_hat = model(w1, b, w2, w3, x)
-    for i in range(len(y)):
-        sum += math.fabs(y[i] - y_hat[i])
-    return sum / len(y)
+    sum = 0
+    for i in range(n):
+        sum += (y_hat[i] - y[i]) ** 2
+    return sum
 
-w1, w2, w3 = 0.01, 0.01, 0.01
-b = 0
-epochs = 1000
-w1, b, w2, w3 = iterate(w1, b, w2, w3, train_x, train_y, epochs)
-error = evaluate(w1, b, w2, w3, test_x, test_y)
-print('MAE error: ', error)
-plt.title('{} iteration / mean absolute error: {:.2f}'.format(epochs, error))
-plt.savefig('graphs/{}epochs-mae{:.2f}.jpg'.format(epochs, error))
+w1, b, w2, w3 = 0.01, 0, 0.01, 0.01
+lr = 1e-4
+epochs = 500000
+w1, b, w2, w3 = iterate(w1, b, w2, w3, train_x, train_y, epochs, lr)
+error = cost_function(w1, b, w2, w3, test_x, test_y)
+print('learning rate:', lr)
+print('epochs:', epochs)
+print('w1:', w1)
+print('b:', b)
+print('w2:', w2)
+print('w3:', w3)
+print('Test data', test_file, 'train with', train_file, 'error:', error)
+plt.title('{} iteration / error: {:.2f}'.format(epochs, error))
+plt.savefig('graphs/{}epochs-error{:.2f}.jpg'.format(epochs, error))
