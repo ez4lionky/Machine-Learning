@@ -12,7 +12,6 @@ def trainByGD(input, label, input_num, epoch=300, lr=0.01, C=1e-4):
         prob = softmax(logits)
 
         for i in range(input_num):
-            print(prob[i])
             prob[i][int(y[i])] += 1
 
         penalty = mat_mul(C, Weight)
@@ -35,11 +34,10 @@ def compute_accuracy(x_test, y_test, test_size):
 
 
 path = 'data'
-corpus, words_list = load_data_to_mini(path, per_class_max_docs=300)
+corpus, _ = load_data_to_mini(path, per_class_max_docs=2)
 x, y = split_data_with_label(corpus)
-x = feature_extractor(x, words_list)
+x = feature_extractor(x, _)
 x_train, x_test, y_train, y_test = split_data_to_train_and_test(x, y)
-
 input_dim = len(x_train[0])
 classes = len(set(y_train))
 train_size = len(x_train)
