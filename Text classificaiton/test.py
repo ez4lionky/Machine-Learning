@@ -1,68 +1,215 @@
-import nltk
+import sys
+import os
 import math
-import string
-from nltk.corpus import stopwords
-from collections import Counter
-from nltk.stem.porter import *
-
-text1 = "Natural language processing (NLP) is a field of computer science, artificial intelligence and computational linguistics concerned with the interactions between computers and human (natural) languages, and, in particular, concerned with programming computers to fruitfully process large natural language corpora. Challenges in natural language processing frequently involve natural language understanding, natural language generation (frequently from formal, machine-readable logical forms), connecting language and machine perception, managing human-computer dialog systems, or some combination thereof."
-text2 = "The Georgetown experiment in 1954 involved fully automatic translation of more than sixty Russian sentences into English. The authors claimed that within three or five years, machine translation would be a solved problem.[2] However, real progress was much slower, and after the ALPAC report in 1966, which found that ten-year-long research had failed to fulfill the expectations, funding for machine translation was dramatically reduced. Little further research in machine translation was conducted until the late 1980s, when the first statistical machine translation systems were developed."
-text3 = "During the 1970s, many programmers began to write conceptual ontologies, which structured real-world information into computer-understandable data. Examples are MARGIE (Schank, 1975), SAM (Cullingford, 1978), PAM (Wilensky, 1978), TaleSpin (Meehan, 1976), QUALM (Lehnert, 1977), Politics (Carbonell, 1979), and Plot Units (Lehnert 1981). During this time, many chatterbots were written including PARRY, Racter, and Jabberwacky。"
-
-def get_tokens(text):
-    lower = text.lower()
-    remove_punctuation_map = dict((ord(char), None) for char in string.punctuation)
-    no_punctuation = lower.translate(remove_punctuation_map)
-    tokens = nltk.word_tokenize(no_punctuation)
-    return tokens
+import argparse
 
 
-def stem_tokens(tokens, stemmer):
-    stemmed = []
-    for item in tokens:
-        stemmed.append(stemmer.stem(item))
-    return stemmed
+did2label = {} # document id and corresponding label
+wid2word = {}
+didwordlist = {} # document id corresponding word list text
+widdoclist = {} # The text number of the word id appears
 
 
-def tf(word, count): 
-    return count[word] / sum(count.values())
+def load_train_data(file_path):
+    fp = open(file_path)
+    did = 0 # doc id
+    word_idx = {} # word to token
+    wid = 0 # token number
+    doc_list = set()
+    while True:
+        line = fp.readline()
+        if len(line) <= 0:
+            break
+        arr = line.strip('\r\n').split('\t')
+        label = int(arr[0])
+        did2label[did] = label
+        didwordlist[did] = set()
+        for w in arr[1:]:
+            if len(w) <= 3:
+                continue
+            if w not in word_idx:
+                word_idx[w] = wid
+                wid2word[wid] = w
+                widdoclist[wid] = set()
+                wid += 1
+            widdoclist[word_idx[w]].add(did)
+            didwordlist[did].add(word_idx[w])
+        doc_list.add(did)
+        did += 1
+    # doc_list (did set)
+    return doc_list
 
 
-def n_containing(word, count_list): 
-    return sum(1 for count in count_list if word in count)
+def entropy(num, den):
+    if num == 0:
+        return 0
+    p = float(num) / float(den)
+    return -p * math.log(p, 2)
 
 
-def idf(word, count_list): 
-    return math.log(len(count_list)) / (1 + n_containing(word, count_list))
+class DecisionTree:
+    def __init__(self):
+        self.word = None
+        self.doc_count = 0
+        self.positive = 0
+        self.negative = 0
+        self.child = {}
+
+    def predict(self, word_list):
+        if len(self.child) == 0:
+            return float(self.positive) / (self.positive + self.negative)
+        if self.word in word_list:
+            return self.child["left"].predict(word_list)
+        else:
+            return self.child["right"].predict(word_list)
+
+    def visualize(self, d):
+        "visualize the tree"
+        for i in range(0, d):
+            print("-", "(%s,%d,%d)" % (self.word, self.positive, self.negative))
+        if len(self.child) != 0:
+            self.child["left"].visualize(d + 1)
+            self.child["right"].visualize(d + 1)
+
+    def build_dt(self, doc_list):
+        self.doc_count = len(doc_list)
+        for did in doc_list:
+            if did2label[did] > 0:
+                self.positive += 1
+            else:
+                self.negative += 1
+
+        # 如果
+        if self.doc_count <= 10 or self.positive * self.negative == 0:
+            return True
+        wid = info_gain(doc_list)
+        if wid == -1:
+            return True
+        self.word = wid2word[wid]
+        left_list = set()
+        right_list = set()
+        for did in doc_list:
+            if did in widdoclist[wid]:
+                left_list.add(did)
+            else:
+                right_list.add(did)
+
+        self.child["left"] = DecisionTree()
+        self.child["right"] = DecisionTree()
+        self.child["left"].build_dt(left_list)
+        self.child["right"].build_dt(right_list)
 
 
-def tfidf(word, count, count_list):
-    return tf(word, count) * idf(word, count_list)
+def info_gain(doc_list):
+    collect_word = set()
+    total_positive = 0
+    total_negative = 0
+    for did in doc_list:
+        for wid in didwordlist[did]:
+            collect_word.add(wid)
+        if did2label[did] > 0:
+            total_positive += 1
+        else:
+            total_negative += 1
+    total = len(doc_list)
+    info = entropy(total_positive, total)
+    info += entropy(total_negative, total)
+    ig = []
+    for wid in collect_word:
+        positive = 0
+        negative = 0
+        for did in widdoclist[wid]:
+            if did not in doc_list:
+                continue
+            if did2label[did] > 0:
+                positive += 1
+            else:
+                negative += 1
+        df = negative + positive
+        a = info
+        b = entropy(positive, df)
+        b += entropy(negative, df)
+        a -= b * df / total
 
-
-def count_term(text):
-    tokens = get_tokens(text)
-    filtered = [w for w in tokens if not w in stopwords.words('english')]
-    stemmer = PorterStemmer()
-    stemmed = stem_tokens(filtered, stemmer)
-    print(type(stemmed))
-    count = Counter(stemmed)
-    return count
-
-
-def main():
-    texts = [text1, text2, text3]
-    countlist = []
-    for text in texts:
-        countlist.append(count_term(text))
-    print(countlist)
-    for i, count in enumerate(countlist):
-        print("Top words in document {}".format(i + 1))
-        scores = {word: tfidf(word, count, countlist) for word in count}
-        sorted_words = sorted(scores.items(), key = lambda x: x[1], reverse=True)
-        for word, score in sorted_words[:5]:
-            print("\tWord: {}, TF-IDF: {}".format(word, round(score, 5)))
+        b = entropy(total_positive - positive, total - df)
+        b += entropy(total_negative - negative, total - df)
+        a -= b * (total - df) / total
+        a = a * 100000.0
+        ig.append((a, wid))
+    ig.sort()
+    ig.reverse()
+    for i, wid in ig:
+        left = 0
+        right = 0
+        for did in doc_list:
+            if did in widdoclist[wid]:
+                left += 1
+            else:
+                right += 1
+        if left >= 5 and right >= 5:
+            return wid
+    return -1
 
 
 if __name__ == "__main__":
-    main()
+
+    parser = argparse.ArgumentParser(description="Decision Tree training and testing")
+    parser.add_argument("-i", "--train_data", default='data.train', help="training data")
+    parser.add_argument("-t", "--test_data", default='test.in', help="testing data")
+    args = parser.parse_args()
+
+    train_file = args.train_data
+    test_file = args.test_data
+    if not train_file or not os.path.exists(train_file):
+        parser.print_help()
+        sys.exit()
+    if not test_file or not os.path.exists(test_file):
+        parser.print_help()
+        sys.exit()
+
+    doc_list = load_train_data(train_file)
+
+    dt = DecisionTree()
+    dt.build_dt(doc_list)
+    # dt.visualize(0)
+
+    fp = open(test_file)
+    true_positive = 0
+    false_positive = 0
+    positive = 0
+    true_negative = 0
+    false_negative = 0
+    negative = 0
+    total = 0
+    while True:
+        line = fp.readline()
+        if len(line) <= 0:
+            break
+        arr = line.strip('\r\n').split('\t')
+        label = int(arr[0])
+        word_list = set()
+        for w in arr[1:]:
+            if len(w) <= 3:
+                continue
+            word_list.add(w)
+        p = dt.predict(word_list)
+        if label == 1:
+            positive += 1
+        else:
+            negative += 1
+        if p >= 0.5:
+            if label == 1:
+                true_positive += 1
+            else:
+                false_positive += 1
+        else:
+            negative += 1
+            if label == -1:
+                true_negative += 1
+            else:
+                false_negative += 1
+        total += 1
+    print("Positive recall :%f" % (true_positive * 100.0 / (positive)))
+    print("Positive precision :%f" % (true_positive * 100.0 / (true_positive + false_positive)))
+    print("Accuary : %f" % ((true_positive + true_negative) * 100.0 / total))
+
