@@ -1,10 +1,16 @@
+import sys
+sys.path.append("..")
+
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+import argparse
 import time
 from load_data import *
 from util import *
 
 
-def trainByGD(input, label, input_num, epoch=100, lr=0.01):
+def trainByGD(input, label, input_num, epoch=5000, lr=0.001):
     Weight = []
     Bias = []
     for i in range(input_dim):
@@ -18,6 +24,7 @@ def trainByGD(input, label, input_num, epoch=100, lr=0.01):
 
     x = input
     y = label
+    accs = []
     for rounds in range(epoch):
         logits = mat_sub_add(mat_mul(x, Weight), Bias, operation='add')
         prob = softmax(logits)
@@ -30,6 +37,23 @@ def trainByGD(input, label, input_num, epoch=100, lr=0.01):
         Weight = mat_sub_add(Weight, mat_mul(lr, T(w_grad)), operation='sub')
         Bias = mat_sub_add(Bias, mat_mul(lr, b_grad), operation='sub')
 
+        logits = mat_sub_add(mat_mul(x_test, Weight), Bias, operation='add')
+        prob = softmax(logits)
+        prediction = mat_argmax(prob)
+        count = 0
+        for i in range(len(prediction)):
+            if prediction[i] == y_test[i]:
+                count = count + 1
+        acc = (count + 0.0)/test_size
+        accs.append(acc)
+    print(np.shape(accs))
+    plt.figure()
+    ax = plt.gca()
+    plt.title('Accuracy - epochs')
+    ax.set_xlabel('Epochs')
+    ax.set_ylabel('Accuracy')
+    plt.plot(range(epoch), accs)
+    plt.savefig('figure1')
     with open("Weight.txt", 'w') as f:
         for row in Weight:
             for _ in row:
@@ -69,29 +93,50 @@ def compute_accuracy(x_test, y_test, test_size):
     print('Right prediction:', count)
     return (count + 0.0)/test_size
 
+parser = argparse.ArgumentParser(description='Perceptron for text classification')
+parser.add_argument('--train', help='Training model', type=int, default=0)
+parser.add_argument('--per_class_max_docs', help='Per-class select corresponding number of doc', type=int,  default=100)
+parser.add_argument('--predict', help='The file need to predict', type=str, default='')
+parser.add_argument('--lr', help='Learning rate', type=float, default=0.01)
+parser.add_argument('--epoch', help='Training iterations', type=int, default=100)
+args = parser.parse_args()
 
-train_flag = False
-test_flag = True
+if args.train!=0:
+    sns.set()
+    path = '../data'
+    print('Loading data...')
+    # Per_class_max_docs: short text extracted for each file
+    corpus, _, texts = load_data_to_mini(path, per_class_max_docs=args.per_class_max_docs, words_num=250)
+    x_train, y_train = split_data_with_label(corpus)
+    with open('words.txt', 'r') as f:
+        words = f.read()
+    x_train = data_processing(x_train, words, texts)
 
-path = '../data'
-print('Loading data...')
-# Per_class_max_docs: short text extracted for each file
-corpus, words_list = load_data_to_mini(path, per_class_max_docs=50, words_num=250)
-x, y = split_data_with_label(corpus)
-x = feature_extractor(x, words_list)
-x_train, x_test, y_train, y_test = split_data_to_train_and_test(x, y)
-input_dim = len(x_train[0])
-classes = len(set(y_train))
-train_size = len(x_train)
-test_size = len(x_test)
-print('Data loaded')
+    input_dim = len(x_train[0])
+    classes = len(set(y_train))
+    train_size = len(x_train)
 
-if train_flag:
+    path = '../test-data'
+    corpus, _, texts = load_data_to_mini(path, per_class_max_docs=args.per_class_max_docs, words_num=250)
+    x_test, y_test = split_data_with_label(corpus)
+    x_test = data_processing(x_test, words, texts)
+    test_size = len(x_test)
+    print('Data loaded')
+
     print('training...')
     s = time.time()
     trainByGD(x_train, y_train, train_size)
     e = time.time()
-    print('time: ', e - s)
+    print('time: %.3fs' % (e - s))
+    print("accuracy:", compute_accuracy(x_test, y_test, test_size))
 
-if test_flag:
+if args.predict!='':
+    path = args.predict
+    corpus, _, texts = load_data_to_mini(path, per_class_max_docs=args.per_class_max_docs, words_num=250)
+    x_test, y_test = split_data_with_label(corpus)
+    with open('words.txt', 'r') as f:
+        words = f.read()
+    x_test = data_processing(x_test, words, texts)
+
+    test_size = len(x_test)
     print("accuracy:", compute_accuracy(x_test, y_test, test_size))

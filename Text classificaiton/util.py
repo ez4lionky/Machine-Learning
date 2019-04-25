@@ -98,6 +98,10 @@ def T(x):
 
 
 def softmax(x):
+    for i in range(len(x)):
+        max_x = max(x[i])
+        for j in range(len(x[i])):
+            x[i][j] = x[i][j] - max_x
     prob = mat_exp(x)
     row_sum = mat_row_sum(prob)
     for i in range(len(prob)):

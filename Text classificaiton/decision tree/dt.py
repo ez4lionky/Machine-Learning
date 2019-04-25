@@ -1,111 +1,16 @@
+import sys
+import pickle
+sys.path.append("..")
 
+import argparse
 from math import *
 from load_data import *
 
 
-def get_max_words(input_x, words_list):
-    count_list = {}
-    for label in input_x:
-        count_list[label] = count_term(input_x[label])
-
-    scores = {}
-    for label in count_list:
-        count = count_list[label]
-        tmp = {word: tfidf(word, count, count_list) for word in count}
-        if label not in scores.keys():
-            scores[label] = tmp
-        else:
-            scores[label].append(tmp)
-
-    words = []
-    for label in scores:
-        d = scores[label]
-        sort_d = sorted(d.items(), key=lambda d: d[1], reverse=True)
-        for i in range(2):
-            words.append(sort_d[i][0])
-    return words
-
-
-def load_data_to_mini(path, per_class_max_docs=10, words_num=250):
-    corpus = {}
-    words_list = ""
-    for files in os.listdir(path):
-        label = files[:-6]
-        if label not in corpus.keys():
-            corpus[label] = []
-
-        file_path = os.path.join(path, files)
-        with open(file_path) as f:
-            text = f.read().lower()
-            for c in string.punctuation:  # Punctuation
-                text = text.replace(c, ' ')
-            for c in string.digits: # Digits
-                text = text.replace(c, '')
-
-            text = text.split()
-            doc = []
-            for i in range(1, per_class_max_docs * words_num + 1):
-                words_list += text[i-1] + ' '
-                doc.append(text[i-1])
-                if i % words_num == 0:
-                    corpus[label].append(doc)
-                    doc = []
-    data = {}
-    for label in corpus.keys():
-        data[label] = reduce(operator.add, corpus[label])
-
-    words_list = list(set(words_list.split()))
-    return corpus, words_list, data
-
-def data_processing(input_x, words):
-    features = []
-
-    for text in input_x:
-        row = [] # stores the feature for each doc
-
-        # calculate the word average length
-        sum = 0
-        count = 0
-        for word in text:
-            sum += len(word)
-            count += 1
-        row.append(1 if sum/count>5 else 0)
-
-        # count the number of 'the'
-        sum = 0
-        for word in text:
-            if word=='the':
-                sum += 1
-        if sum<10:
-            row.append(0)
-        elif sum<=13:
-            row.append(1)
-        else:
-            row.append(2)
-
-        # count the key word frequency
-        for key_word in words:
-            sum = 0
-            for word in text:
-                if word==key_word:
-                    sum += 1
-            if sum>3:
-                row.append(1)
-            else:
-                row.append(0)
-
-        features.append(row)
-
-    # print(np.shape(features))
-    return features
-
-
-
-# The input of decision tree should be [n, feature_dim] each feature is a discrete attribute, which can be calculated as the prob
 class DecisonTree:
     trainData = []
     trainLabel = []
-    featureValues = {} #每个特征所有可能的取值
+    featureValues = {}
     max_depth = 0
 
     def __init__(self, trainData, trainLabel, threshold, max_depth):
@@ -121,7 +26,7 @@ class DecisonTree:
         self.trainData = trainData
         self.trainLabel = trainLabel
 
-        #计算 featureValues的可能值，用来根据特征的取值划分数据集
+        # calculate all the feature values, to split the data
         for data in trainData:
             for index, value in enumerate(data):
                 if not index in self.featureValues.keys():
@@ -130,7 +35,7 @@ class DecisonTree:
                     self.featureValues[index].append(value)
 
 
-    # 计算信息熵
+    # calculate the information entropy
     def caculateEntropy(self, dataset):
         labelCount = self.labelCount(dataset, self.trainLabel)
         size = len(dataset)
@@ -140,16 +45,16 @@ class DecisonTree:
             result -= pi * (log(pi) / log(2))
         return result
 
-    # 计算信息增益
+    # calculate the information gain
     def caculateGain(self, dataset_index, feature_index):
-        values = self.featureValues[feature_index] #特征所有可能的取值
+        values = self.featureValues[feature_index]
         result = 0
         for v in values:
             subDataset = self.splitDataset(dataset=dataset_index, feature=feature_index, value=v)
             result += len(subDataset) / float(len(dataset_index)) * self.caculateEntropy(subDataset)
         return self.caculateEntropy(dataset=dataset_index) - result
 
-    # 计算数据集中，每个标签出现的次数
+    # count the label occurrence
     def labelCount(self, dataset, trainLabel):
         labelCount = {}
         for i in dataset:
@@ -178,7 +83,7 @@ class DecisonTree:
         # Calculate the information gain of each feature in the feature set
         l = map(lambda x : [x, self.caculateGain(dataset_index=dataset_index, feature_index=x)], features_index)
         # select the feature index has max info_gain
-        feature, gain = max(list(l), key = lambda x: x[1])
+        max_feature_index, gain = max(list(l), key = lambda x: x[1])
 
         # If the maximum info_gain is less than the threshold, the label with the largest number of samples is selected
         if self.threshold > gain:
@@ -186,14 +91,15 @@ class DecisonTree:
 
         tree = {}
         # Select feature subset
-        subFeatures = list(filter(lambda x : x != feature, features_index))
-        tree['feature'] = feature
+        subFeatures = list(filter(lambda x : x != max_feature_index, features_index))
+        tree['feature'] = max_feature_index
         # Build subtree
-        for value in self.featureValues[feature]:
-            subDataset = self.splitDataset(dataset=dataset_index, feature=feature, value=value)
+        for value in self.featureValues[max_feature_index]:
+            subDataset = self.splitDataset(dataset=dataset_index, feature=max_feature_index, value=value)
 
             # Ensure that the sub-dataset is not empty
             if not subDataset:
+                tree[value] = max(list(labelCount.items()), key = lambda x:x[1])[0]
                 continue
             tree[value] = self.createTree(dataset_index=subDataset, features_index=subFeatures, depth=depth+1)
         return tree
@@ -205,6 +111,7 @@ class DecisonTree:
                 reslut.append(index)
         return reslut
 
+
     def classify(self, data):
         def f(tree, data):
             if type(tree) != dict:
@@ -215,18 +122,63 @@ class DecisonTree:
                 return f(tree[value], data)
         return f(self.tree, data)
 
-if __name__ == '__main__':
+
+parser = argparse.ArgumentParser(description='Decision tree for text classification')
+parser.add_argument('--train', help='Training model', type=int, default=0)
+parser.add_argument('--per_class_max_docs', help='Per-class select corresponding number of doc', type=int, default=100)
+parser.add_argument('--predict', help='The file need to predict', type=str, default='')
+
+args = parser.parse_args()
+if args.train!=0:
     path = '../data'
     print('Loading data...')
     # Per_class_max_docs: short text extracted for each file
-    corpus, words_list, data = load_data_to_mini(path, per_class_max_docs=50, words_num=250)
-    x, y = split_data_with_label(corpus)
-    words = get_max_words(data, words_list)
-    x = data_processing(x, words)
+    corpus, _, texts = load_data_to_mini(path, per_class_max_docs=100, words_num=250)
+    x_train, y_train = split_data_with_label(corpus)
+    # words = get_max_words(texts, words_list)
+    with open('words.txt', 'r') as f:
+        words = f.read()
+    x_train = data_processing(x_train, words, texts, True)
+    # x_train, x_test, y_train, y_test = split_data_to_train_and_test(x, y)
+    tree = DecisonTree(trainData=x_train, trainLabel=y_train, threshold=0.01, max_depth=8)
+    fw = open('dtfile.txt', 'wb')
+    pickle.dump(tree, fw)
+    fw.close()
+    fw = open('texts.txt', 'wb')
+    pickle.dump(texts, fw)
+    fw.close()
 
-    x_train, x_test, y_train, y_test = split_data_to_train_and_test(x, y)
+    path = '../test-data'
+    corpus, _, __ = load_data_to_mini(path, per_class_max_docs=100, words_num=250)
+    x_test, y_test = split_data_with_label(corpus)
+    x_test = data_processing(x_test, words, texts, True)
+    y_predict = []
+    for data in x_test:
+        y_predict.append(tree.classify(data))
 
-    tree = DecisonTree(trainData=x_train, trainLabel=y_train, threshold=0.001, max_depth=5)
+    count = 0
+    for i in range(len(y_test)):
+        if y_predict[i] == y_test[i]:
+            count += 1
+    print('accuracy', count / len(y_test))
+
+
+if args.predict!='':
+    fr = open('dtfile.txt', 'rb')
+    tree = pickle.load(fr)
+    fr.close()
+    fr = open('texts.txt', 'rb')
+    texts = pickle.load(fr)
+    fr.close()
+
+    path = args.predict
+    print('Loading data...')
+    # Per_class_max_docs: short text extracted for each file
+    corpus, words_list, _ = load_data_to_mini(path, per_class_max_docs=args.per_class_max_docs, words_num=250)
+    x_test, y_test = split_data_with_label(corpus)
+    with open('words.txt', 'r') as f:
+        words = f.read()
+    x_test = data_processing(x_test, words, texts, True)
 
     y_predict = []
     for data in x_test:
@@ -234,6 +186,6 @@ if __name__ == '__main__':
 
     count = 0
     for i in range(len(y_test)):
-        if y_predict[i]==y_test[i]:
+        if y_predict[i] == y_test[i]:
             count += 1
-    print('accuracy', count/len(y_test))
+    print('accuracy', count / len(y_test))
