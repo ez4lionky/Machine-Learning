@@ -1,16 +1,14 @@
 import sys
 sys.path.append("..")
 
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
+
 import argparse
 import time
 from load_data import *
 from util import *
 
 
-def trainByGD(input, label, input_num, epoch=5000, lr=0.001):
+def trainByGD(input, label, input_num, epoch=10000, lr=0.001):
     Weight = []
     Bias = []
     for i in range(input_dim):
@@ -46,14 +44,13 @@ def trainByGD(input, label, input_num, epoch=5000, lr=0.001):
                 count = count + 1
         acc = (count + 0.0)/test_size
         accs.append(acc)
-    print(np.shape(accs))
-    plt.figure()
-    ax = plt.gca()
-    plt.title('Accuracy - epochs')
-    ax.set_xlabel('Epochs')
-    ax.set_ylabel('Accuracy')
-    plt.plot(range(epoch), accs)
-    plt.savefig('figure1')
+    # plt.figure()
+    # ax = plt.gca()
+    # plt.title('Accuracy - epochs')
+    # ax.set_xlabel('Epochs')
+    # ax.set_ylabel('Accuracy')
+    # plt.plot(range(epoch), accs)
+    # plt.savefig('figure1')
     with open("Weight.txt", 'w') as f:
         for row in Weight:
             for _ in row:
@@ -102,7 +99,6 @@ parser.add_argument('--epoch', help='Training iterations', type=int, default=100
 args = parser.parse_args()
 
 if args.train!=0:
-    sns.set()
     path = '../data'
     print('Loading data...')
     # Per_class_max_docs: short text extracted for each file

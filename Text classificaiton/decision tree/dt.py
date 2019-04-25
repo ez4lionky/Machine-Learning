@@ -140,7 +140,7 @@ if args.train!=0:
         words = f.read()
     x_train = data_processing(x_train, words, texts, True)
     # x_train, x_test, y_train, y_test = split_data_to_train_and_test(x, y)
-    tree = DecisonTree(trainData=x_train, trainLabel=y_train, threshold=0.01, max_depth=8)
+    tree = DecisonTree(trainData=x_train, trainLabel=y_train, threshold=0.005, max_depth=8)
     fw = open('dtfile.txt', 'wb')
     pickle.dump(tree, fw)
     fw.close()
