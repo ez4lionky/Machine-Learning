@@ -127,20 +127,22 @@ parser = argparse.ArgumentParser(description='Decision tree for text classificat
 parser.add_argument('--train', help='Training model', type=int, default=0)
 parser.add_argument('--per_class_max_docs', help='Per-class select corresponding number of doc', type=int, default=100)
 parser.add_argument('--predict', help='The file need to predict', type=str, default='')
+parser.add_argument('--max_depth', help='The max depth of decision tree', type=int, default=10)
+parser.add_argument('--threshold', help='The threshold of entropy cutoff', type=float, default=0.01)
 
 args = parser.parse_args()
 if args.train!=0:
     path = '../data'
     print('Loading data...')
     # Per_class_max_docs: short text extracted for each file
-    corpus, _, texts = load_data_to_mini(path, per_class_max_docs=100, words_num=250)
+    corpus, _, texts = load_data_to_mini(path, per_class_max_docs=args.per_class_max_docs, words_num=250)
     x_train, y_train = split_data_with_label(corpus)
     # words = get_max_words(texts, words_list)
     with open('words.txt', 'r') as f:
         words = f.read()
     x_train = data_processing(x_train, words, texts, True)
     # x_train, x_test, y_train, y_test = split_data_to_train_and_test(x, y)
-    tree = DecisonTree(trainData=x_train, trainLabel=y_train, threshold=0.005, max_depth=8)
+    tree = DecisonTree(trainData=x_train, trainLabel=y_train, threshold=args.threshold, max_depth=args.max_depth)
     fw = open('dtfile.txt', 'wb')
     pickle.dump(tree, fw)
     fw.close()

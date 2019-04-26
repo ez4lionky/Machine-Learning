@@ -7,8 +7,15 @@ import time
 from load_data import *
 from util import *
 
+parser = argparse.ArgumentParser(description='Perceptron for text classification')
+parser.add_argument('--train', help='Training model', type=int, default=0)
+parser.add_argument('--per_class_max_docs', help='Per-class select corresponding number of doc', type=int,  default=100)
+parser.add_argument('--predict', help='The file need to predict', type=str, default='')
+parser.add_argument('--lr', help='Learning rate', type=float, default=0.001)
+parser.add_argument('--epoch', help='Training iterations', type=int, default=1000)
+args = parser.parse_args()
 
-def trainByGD(input, label, input_num, epoch=10000, lr=0.001):
+def trainByGD(input, label, input_num, epoch=args.epoch, lr=args.lr):
     Weight = []
     Bias = []
     for i in range(input_dim):
@@ -89,14 +96,6 @@ def compute_accuracy(x_test, y_test, test_size):
             count = count + 1
     print('Right prediction:', count)
     return (count + 0.0)/test_size
-
-parser = argparse.ArgumentParser(description='Perceptron for text classification')
-parser.add_argument('--train', help='Training model', type=int, default=0)
-parser.add_argument('--per_class_max_docs', help='Per-class select corresponding number of doc', type=int,  default=100)
-parser.add_argument('--predict', help='The file need to predict', type=str, default='')
-parser.add_argument('--lr', help='Learning rate', type=float, default=0.01)
-parser.add_argument('--epoch', help='Training iterations', type=int, default=100)
-args = parser.parse_args()
 
 if args.train!=0:
     path = '../data'
