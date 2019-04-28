@@ -116,6 +116,7 @@ def load_data_to_mini(path, per_class_max_docs=10, words_num=250):
         with open(file_path) as f:
             text = f.read().lower()
             text = text.split()
+            print(len(text))
             doc = []
             for i in range(1, per_class_max_docs * words_num + 1):
                 words_list += text[i - 1] + ' '

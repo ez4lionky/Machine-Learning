@@ -143,10 +143,10 @@ if args.train!=0:
     x_train = data_processing(x_train, words, texts, True)
     # x_train, x_test, y_train, y_test = split_data_to_train_and_test(x, y)
     tree = DecisonTree(trainData=x_train, trainLabel=y_train, threshold=args.threshold, max_depth=args.max_depth)
-    fw = open('dtfile.txt', 'wb')
+    fw = open('dtfile', 'wb')
     pickle.dump(tree, fw)
     fw.close()
-    fw = open('texts.txt', 'wb')
+    fw = open('texts', 'wb')
     pickle.dump(texts, fw)
     fw.close()
 
@@ -166,10 +166,10 @@ if args.train!=0:
 
 
 if args.predict!='':
-    fr = open('dtfile.txt', 'rb')
+    fr = open('dtfile', 'rb')
     tree = pickle.load(fr)
     fr.close()
-    fr = open('texts.txt', 'rb')
+    fr = open('texts', 'rb')
     texts = pickle.load(fr)
     fr.close()
 
