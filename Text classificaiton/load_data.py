@@ -116,7 +116,6 @@ def load_data_to_mini(path, per_class_max_docs=10, words_num=250):
         with open(file_path) as f:
             text = f.read().lower()
             text = text.split()
-            print(len(text))
             doc = []
             for i in range(1, per_class_max_docs * words_num + 1):
                 words_list += text[i - 1] + ' '
@@ -131,6 +130,19 @@ def load_data_to_mini(path, per_class_max_docs=10, words_num=250):
     words_list = list(set(words_list.split()))
     return corpus, words_list, texts
 
+def load_single_text_to_test(path, words_num=250):
+    corpus = []
+
+    with open(path) as f:
+        text = f.read().lower()
+        text = text.split()
+        doc = []
+        for i in range(1, words_num + 1):
+            doc.append(text[i-1])
+            if i % words_num == 0:
+                corpus.append(doc)
+                doc = []
+    return corpus
 
 def norm(x):
     min_x = min(x)

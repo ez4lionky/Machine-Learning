@@ -8,9 +8,9 @@ from load_data import *
 from util import *
 
 parser = argparse.ArgumentParser(description='Perceptron for text classification')
-parser.add_argument('--train', help='Training model', type=int, default=0)
+parser.add_argument('action', help='If predict', type=str, default='predict')
+parser.add_argument('path', help='The file need to predict', type=str, default='')
 parser.add_argument('--per_class_max_docs', help='Per-class select corresponding number of doc', type=int,  default=100)
-parser.add_argument('--predict', help='The file need to predict', type=str, default='')
 parser.add_argument('--lr', help='Learning rate', type=float, default=0.001)
 parser.add_argument('--epoch', help='Training iterations', type=int, default=1000)
 args = parser.parse_args()
@@ -94,11 +94,32 @@ def compute_accuracy(x_test, y_test, test_size):
     for i in range(len(prediction)):
         if prediction[i] == y_test[i]:
             count = count + 1
-    print('Right prediction:', count)
     return (count + 0.0)/test_size
 
-if args.train!=0:
-    path = '../data'
+def predict(x_test):
+    Weight = []
+    Bias = []
+    with open("Weight.txt") as f:
+        line = f.readline()
+        while line:
+            row = []
+            for _ in line.split():
+                row.append(float(_))
+            Weight.append(row)
+            line = f.readline()
+    with open("Bias.txt") as f:
+        B = f.read()
+        for _ in B.split():
+            Bias.append(float(_))
+
+    logits = mat_sub_add(mat_mul(x_test, Weight), Bias, operation='add')
+    prob = softmax(logits)
+    prediction = mat_argmax(prob)
+    for _ in prediction:
+        print(label_token(_))
+
+if args.action=='train':
+    path = args.path
     print('Loading data...')
     # Per_class_max_docs: short text extracted for each file
     corpus, _, texts = load_data_to_mini(path, per_class_max_docs=args.per_class_max_docs, words_num=250)
@@ -125,13 +146,20 @@ if args.train!=0:
     print('time: %.3fs' % (e - s))
     print("accuracy:", compute_accuracy(x_test, y_test, test_size))
 
-if args.predict!='':
-    path = args.predict
-    corpus, _, texts = load_data_to_mini(path, per_class_max_docs=args.per_class_max_docs, words_num=250)
-    x_test, y_test = split_data_with_label(corpus)
-    with open('words.txt', 'r') as f:
-        words = f.read()
-    x_test = data_processing(x_test, words, texts)
+if args.action=='predict':
+    path = args.path
+    if path!='../test-data/':
+        corpus = load_single_text_to_test(path, words_num=250)
+        with open('words.txt', 'r') as f:
+            words = f.read()
+        x_test = data_processing(corpus, words, corpus)
+        predict(x_test)
+    else:
+        corpus, _, texts = load_data_to_mini(path, per_class_max_docs=args.per_class_max_docs, words_num=250)
+        x_test, y_test = split_data_with_label(corpus)
+        with open('words.txt', 'r') as f:
+            words = f.read()
+        x_test = data_processing(x_test, words, texts)
 
-    test_size = len(x_test)
-    print("accuracy:", compute_accuracy(x_test, y_test, test_size))
+        test_size = len(x_test)
+        print("accuracy:", compute_accuracy(x_test, y_test, test_size))

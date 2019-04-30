@@ -124,14 +124,15 @@ class DecisonTree:
 
 
 parser = argparse.ArgumentParser(description='Decision tree for text classification')
+parser.add_argument('action', help='If predict', type=str, default='predict')
+parser.add_argument('path', help='The file need to predict', type=str, default='')
 parser.add_argument('--train', help='Training model', type=int, default=0)
 parser.add_argument('--per_class_max_docs', help='Per-class select corresponding number of doc', type=int, default=100)
-parser.add_argument('--predict', help='The file need to predict', type=str, default='')
 parser.add_argument('--max_depth', help='The max depth of decision tree', type=int, default=10)
 parser.add_argument('--threshold', help='The threshold of entropy cutoff', type=float, default=0.01)
 
 args = parser.parse_args()
-if args.train!=0:
+if args.action=='train':
     path = '../data'
     print('Loading data...')
     # Per_class_max_docs: short text extracted for each file
@@ -164,8 +165,7 @@ if args.train!=0:
             count += 1
     print('accuracy', count / len(y_test))
 
-
-if args.predict!='':
+if args.action=='predict':
     fr = open('dtfile', 'rb')
     tree = pickle.load(fr)
     fr.close()
@@ -173,21 +173,30 @@ if args.predict!='':
     texts = pickle.load(fr)
     fr.close()
 
-    path = args.predict
-    print('Loading data...')
-    # Per_class_max_docs: short text extracted for each file
-    corpus, words_list, _ = load_data_to_mini(path, per_class_max_docs=args.per_class_max_docs, words_num=250)
-    x_test, y_test = split_data_with_label(corpus)
-    with open('words.txt', 'r') as f:
-        words = f.read()
-    x_test = data_processing(x_test, words, texts, True)
+    path = args.path
+    if path=='../test-data/':
+        corpus, words_list, _ = load_data_to_mini(path, per_class_max_docs=args.per_class_max_docs, words_num=250)
+        x_test, y_test = split_data_with_label(corpus)
+        with open('words.txt', 'r') as f:
+            words = f.read()
+        x_test = data_processing(x_test, words, texts, True)
 
-    y_predict = []
-    for data in x_test:
-        y_predict.append(tree.classify(data))
+        y_predict = []
+        for data in x_test:
+            y_predict.append(tree.classify(data))
 
-    count = 0
-    for i in range(len(y_test)):
-        if y_predict[i] == y_test[i]:
-            count += 1
-    print('accuracy', count / len(y_test))
+        count = 0
+        for i in range(len(y_test)):
+            if y_predict[i] == y_test[i]:
+                count += 1
+        print('accuracy', count / len(y_test))
+    else:
+        x_test = load_single_text_to_test(path)
+
+        with open('words.txt', 'r') as f:
+            words = f.read()
+        x_test = data_processing(x_test, words, texts, True)
+
+        for data in x_test:
+            t = label_token(tree.classify(data))
+            print(t)
